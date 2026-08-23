@@ -1,0 +1,11 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "geosocial-server-1.onrender",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "geosocial-server-1.onrender",
+  "start_url": "/",
+  "theme_color": "#17212b"
+}
