@@ -69,7 +69,6 @@ button{color:inherit}
 
 .global-chat-widget{position:absolute;left:10px;bottom:calc(72px + var(--safe-bottom));z-index:35;display:flex;flex-direction:column;gap:8px;pointer-events:auto;align-items:flex-start}
 .global-chat-btn{width:45px;height:45px;border-radius:12px;background:transparent;border:0;color:var(--blue);display:grid;place-items:center;cursor:pointer;font-size:22px}
-.global-chat-btn:active{transform:scale(0.9)}
 
 .controls{position:absolute;right:10px;bottom:calc(78px + var(--safe-bottom));z-index:10;display:flex;flex-direction:column;align-items:center;gap:10px}
 .ctrl{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;cursor:pointer;background:var(--solid);border:1px solid var(--border);box-shadow:0 2px 8px #0006}
@@ -143,8 +142,6 @@ button{color:inherit}
 .map-pin-avatar img{width:100%;height:100%;object-fit:cover}
 .status-led{position:absolute;bottom:0;right:0;width:11px;height:11px;border-radius:50%;border:2px solid #17212b;box-shadow:0 0 4px #000}
 .status-led.online{background:var(--green)}
-.status-led.busy{background:var(--danger)}
-.status-led.offline{background:var(--muted)}
 .pin-label{position:absolute;top:100%;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:9px;color:#fff;background:rgba(23,33,43,0.9);padding:1px 5px;border-radius:4px;margin-top:2px;border:1px solid var(--border)}
 
 .story-viewer{position:absolute;inset:0;z-index:150;background:#000;display:none;flex-direction:column;justify-content:space-between;padding:max(10px,env(safe-area-inset-top)) 0 max(10px,env(safe-area-inset-bottom));touch-action:none;user-select:none}
@@ -176,8 +173,6 @@ button{color:inherit}
 .people-search{padding:12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--solid);z-index:3}
 .people-search input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:#fff;outline:0;text-align:right}
 .empty-list{padding:30px;text-align:center;color:var(--muted)}
-.profile-setting{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)}
-.profile-setting input,.profile-setting select{flex:1;max-width:65%;background:var(--solid);border:1px solid var(--border);border-radius:8px;color:#fff;padding:9px}
 .permission-box{padding:12px;background:var(--solid);border:1px solid var(--border);border-radius:10px;margin-bottom:15px}
 </style>
 </head>
@@ -361,18 +356,18 @@ button{color:inherit}
 
 const defaultState={
   user:{
-    name:'کاربر GeoSocial Pro',username:'geosocial_user',
-    bio:'آماده برای ارتباطات جدید',city:'تهران',
-    avatar:'https://i.pravatar.cc/150?img=33',ghost:false,
-    onlineStatus:true,unknownMessages:true,notifMessages:true,notifStories:true,
-    readReceipts:true,storyAutoplay:true,sound:true,preciseLocation:true,
-    saveHistory:true,showDistance:true,twoStep:false,darkMode:true,globalSearch:true
+    name:'کاربر من', username:'my_user',
+    bio:'آماده برای ارتباطات جدید', city:'تهران',
+    avatar:'https://i.pravatar.cc/150?img=33', ghost:false,
+    onlineStatus:true, unknownMessages:true, notifMessages:true, notifStories:true,
+    readReceipts:true, storyAutoplay:true, sound:true, preciseLocation:true,
+    saveHistory:true, showDistance:true, twoStep:false, darkMode:true, globalSearch:true
   },
   coords:{lat:35.6892,lng:51.3890},
   radius:5,
   publicChat:[],
   stories:[],
-  pins:[]
+  pins:[] // کاملاً خالی از افراد فیک
 };
 
 function clone(x){return JSON.parse(JSON.stringify(x))}
@@ -397,13 +392,13 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
 }).addTo(map);
 clusters=L.markerClusterGroup({showCoverageOnHover:false,removeOutsideVisibleBounds:true}).addTo(map);
 
-// دریافت اطلاعات زنده از دیتابیس سرور
+// دریافت اطلاعات زنده از دیتابیس
 async function loadServerData() {
   try {
     const res = await fetch('/api/data');
     if (!res.ok) throw Error();
     const data = await res.json();
-    if (data.pins && data.pins.length > 0) state.pins = data.pins;
+    if (data.pins) state.pins = data.pins;
     if (data.publicChat) state.publicChat = data.publicChat;
     if (data.stories) state.stories = data.stories;
     
@@ -425,7 +420,7 @@ function updateMyMarker(){
 }
 
 function mapPinIcon(p){
-  const statusClass=p.status==='online'?'online':p.status==='busy'?'busy':'offline';
+  const statusClass=p.status==='online'?'online':'offline';
   const showName=(map.getZoom()>=17);
   const label=showName?`<span class="pin-label">${esc(p.name)}</span>`:'';
   return L.divIcon({
@@ -467,7 +462,7 @@ function requestLocation(){
   navigator.geolocation.getCurrentPosition(p=>{
     state.coords={lat:p.coords.latitude,lng:p.coords.longitude};
     map.flyTo([state.coords.lat,state.coords.lng],16,{duration:.45});drawRadiusCircle();renderMap();
-    toast('به موقعیت شما منتقل شد')
+    toast('موقعیت GPS با موفقیت دریافت شد')
   },err=>{toast('خطا در دریافت موقعیت مکانی')},{enableHighAccuracy:true,timeout:15000,maximumAge:15000})
 }
 
@@ -642,7 +637,7 @@ function renderPublicFeed(){
   let msgs = state.publicChat || [];
   if(msgs.length > 30) msgs = msgs.slice(msgs.length - 30);
   msgs.forEach(m=>{
-    const isOut=m.sender_name===state.user.name || m.name===state.user.name || m.out===true;
+    const isOut=m.sender_name===state.user.name || m.name===state.user.name;
     const item=document.createElement('div');
     item.className=`public-feed-item ${isOut?'out':'in'}`;
     const senderName = m.sender_name || m.name;
@@ -653,7 +648,6 @@ function renderPublicFeed(){
   requestAnimationFrame(()=>box.scrollTop=box.scrollHeight);
 }
 
-// ارسال پیام به چت عمومی و ذخیره در دیتابیس واقعی
 async function sendPublicMessage(){
   const input=document.getElementById('publicMsgInput'), text=input.value.trim();
   if(!text)return;
@@ -758,7 +752,7 @@ function selectPinCore(p){
   activePin=p;
   document.getElementById('sheetAvatar').src=p.avatar;
   document.getElementById('sheetName').textContent=p.name;
-  document.getElementById('sheetStatus').textContent=p.status==='online'?'آنلاین':p.status==='busy'?'مشغول':'آفلاین';
+  document.getElementById('sheetStatus').textContent=p.status==='online'?'آنلاین':'آفلاین';
   renderMessages();
   document.getElementById('sheet').classList.add('open');
   map.flyTo([Number(p.lat),Number(p.lng)],15,{duration:.45});
@@ -774,7 +768,7 @@ function renderMessages(){
     const d=document.createElement('div');d.className='msg '+(m.out?'out':'in');
     d.oncontextmenu=e=>{e.preventDefault();openCtx(e,m)};
     d.onclick=e=>{e.stopPropagation();openCtx(e,m)};
-    d.innerHTML=(m.replyTo?`<div class="replybox">ریپلای به: ${esc(m.replyTo)}</div>`:'')+esc(m.text)+(m.out?(state.user.readReceipts?'<span class="meta"><i class="fa-solid fa-check-double"></i></span>':''):'');
+    d.innerHTML=(m.replyTo?`<div class="replybox">ریپلای به: ${esc(m.replyTo)}</div>`:'')+esc(m.text)+(m.out?'<span class="meta"><i class="fa-solid fa-check-double"></i></span>':'');
     box.appendChild(d)
   });
   requestAnimationFrame(()=>box.scrollTop=box.scrollHeight);
@@ -890,11 +884,12 @@ function handlePhoto(e){
 document.getElementById('radius').value=state.radius;
 document.getElementById('radiusValue').textContent=String(state.radius).replace('.0','');
 
-// لود اولیه اطلاعات و بروزرسانی خودکار هر ۱۰ ثانیه از دیتابیس
+// دریافت اطلاعات و همگام‌سازی خودکار هر ۱۰ ثانیه
 loadServerData();
 setInterval(loadServerData, 10000);
 
-drawRadiusCircle();updateMyMarker();
+drawRadiusCircle();
+requestLocation(); // درخواست خودکار GPS هنگام ورود به برنامه
 setTimeout(()=>map.invalidateSize(),250);
 window.addEventListener('resize',()=>map.invalidateSize());
 </script>
