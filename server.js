@@ -1,10 +1,18 @@
 const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
+const cors = require('cors'); // ۱. اضافه‌کردن پکیج cors برای ارتباط بدون مشکل با اپلیکیشن
 
 const app = express();
+
+// ۲. فعال‌سازی CORS برای اجازه دادن به اپلیکیشن و وب‌ویو برای ارسال درخواست
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+
+// ۳. سرو کردن فایل‌های استاتیک از پوشه روت (یا جایی که index.html قرار دارد)
+app.use(express.static(__dirname)); 
+// اگر index.html داخل پوشه public است، خط بالا را به این صورت تغییر دهید:
+// app.use(express.static(path.join(__dirname, 'public')));
 
 // اتصال به دیتابیس PostgreSQL
 const pool = new Pool({
