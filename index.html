@@ -392,10 +392,12 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
 }).addTo(map);
 clusters=L.markerClusterGroup({showCoverageOnHover:false,removeOutsideVisibleBounds:true}).addTo(map);
 
-// دریافت اطلاعات زنده از دیتابیس
+const API_BASE = 'https://geosocial-server-1.onrender.com';
+
+// دریافت اطلاعات زنده از دیتابیس سرور
 async function loadServerData() {
   try {
-    const res = await fetch('/api/data');
+    const res = await fetch(`${API_BASE}/api/data`);
     if (!res.ok) throw Error();
     const data = await res.json();
     if (data.pins) state.pins = data.pins;
@@ -408,9 +410,35 @@ async function loadServerData() {
       renderPublicFeed();
     }
   } catch (e) {
-    console.error("خطا در همگام‌سازی با دیتابیس");
+    console.error("خطا در همگام‌سازی با سرور");
   }
 }
+
+// ارسال پیام به چت عمومی سرور
+async function sendPublicMessage(){
+  const input=document.getElementById('publicMsgInput'), text=input.value.trim();
+  if(!text)return;
+  try {
+    const res = await fetch(`${API_BASE}/api/public-chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: state.user.name,
+        avatar: state.user.avatar,
+        text: text
+      })
+    });
+    if(res.ok) {
+      const newMsg = await res.json();
+      state.publicChat.push(newMsg);
+      input.value='';
+      renderPublicFeed();
+    }
+  } catch(e) {
+    toast('خطا در ارسال پیام به سرور');
+  }
+}
+
 
 function updateMyMarker(){
   if(myMarker){map.removeLayer(myMarker);myMarker=null}
