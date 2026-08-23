@@ -1,9 +1,13 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// معرفی پوشه public به عنوان فایل‌های استاتیک (برای اینکه index.html و عکس‌ها باز شوند)
+app.use(express.static(path.join(__dirname, 'public')));
 
 // حافظه موقت سرور برای نگهداری پین‌ها، چت‌ها و استوری‌ها
 let db = {
@@ -12,9 +16,9 @@ let db = {
   stories: []
 };
 
-// ۱. رفع ارور Cannot GET / (نمایش پیام خوش‌آمدگویی در صفحه اصلی سرور)
+// ۱. باز کردن فایل index.html به عنوان صفحه اصلی سایت
 app.get('/', (req, res) => {
-  res.send('GeoSocial Server is Running Successfully! 🚀');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // دریافت تمام اطلاعات برنامه
