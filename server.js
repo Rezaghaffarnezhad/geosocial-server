@@ -6,15 +6,17 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// اتصال به دیتابیس PostgreSQL با استفاده از متغیر محیطی Render
+// اتصال به دیتابیس PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// ایجاد جداول دیتابیس در صورت عدم وجود
+// تابع قدرتمند برای ساخت خودکار جدول‌ها
 async function initDB() {
   try {
+    console.log("Connecting to database and checking tables...");
+    
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -27,7 +29,9 @@ async function initDB() {
         lng DECIMAL(10, 6),
         status VARCHAR(20) DEFAULT 'online'
       );
+    `);
 
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS public_chat (
         id SERIAL PRIMARY KEY,
         sender_name VARCHAR(100),
@@ -35,7 +39,9 @@ async function initDB() {
         text TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
 
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS stories (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100),
@@ -45,14 +51,17 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("Database tables initialized successfully.");
+
+    console.log("✅ Database tables checked/created successfully!");
   } catch (err) {
-    console.error("Error initializing database:", err);
+    console.error("❌ Error initializing database:", err);
   }
 }
+
+// صدا زدن تابع ساخت جدول‌ها بلافاصله پس از اجرا
 initDB();
 
-// API دریافت اطلاعات از دیتابیس
+// API دریافت اطلاعات
 app.get('/api/data', async (req, res) => {
   try {
     const users = await pool.query('SELECT * FROM users');
@@ -65,11 +74,12 @@ app.get('/api/data', async (req, res) => {
       stories: stories.rows
     });
   } catch (err) {
+    console.error("GET /api/data error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// API ارسال پیام به چت عمومی و ذخیره در دیتابیس
+// API ارسال پیام به چت عمومی
 app.post('/api/public-chat', async (req, res) => {
   const { name, avatar, text } = req.body;
   try {
@@ -79,6 +89,7 @@ app.post('/api/public-chat', async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
+    console.error("POST /api/public-chat error:", err);
     res.status(500).json({ error: err.message });
   }
 });
