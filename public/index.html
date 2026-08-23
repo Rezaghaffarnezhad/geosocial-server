@@ -174,9 +174,23 @@ button{color:inherit}
 .people-search input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:#fff;outline:0;text-align:right}
 .empty-list{padding:30px;text-align:center;color:var(--muted)}
 .permission-box{padding:12px;background:var(--solid);border:1px solid var(--border);border-radius:10px;margin-bottom:15px}
+
+#authOverlay{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+.auth-box{background:var(--solid);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:340px;box-shadow:0 10px 30px #000b;text-align:center}
+.auth-box h2{margin-bottom:6px;font-size:18px}
+.auth-box p{color:var(--muted);font-size:12px;margin-bottom:20px}
 </style>
 </head>
 <body>
+
+<div id="authOverlay" style="display:none;">
+  <div class="auth-box">
+    <h2>ورود به GeoSocial</h2>
+    <p>نام خود را وارد کنید تا دوستانتان شما را روی نقشه ببینند</p>
+    <div class="form"><label>نام نمایشی شما</label><input id="authNameInput" placeholder="مثلاً: علی رضایی"></div>
+    <button class="primary" onclick="completeLogin()">ورود به برنامه</button>
+  </div>
+</div>
 
 <div id="toast" class="toast">پیام سیستم</div>
 <div id="map"></div>
@@ -354,11 +368,35 @@ button{color:inherit}
 <script>
 'use strict';
 
+let savedName = localStorage.getItem('geo_user_name');
+let savedAvatar = localStorage.getItem('geo_user_avatar');
+
+if(!savedName) {
+  document.getElementById('authOverlay').style.display = 'flex';
+}
+
+function completeLogin(){
+  const nameInput = document.getElementById('authNameInput').value.trim();
+  if(!nameInput){ alert('لطفا نام خود را وارد کنید'); return; }
+  
+  savedName = nameInput;
+  savedAvatar = 'https://i.pravatar.cc/150?img=' + Math.floor(Math.random() * 70);
+  
+  localStorage.setItem('geo_user_name', savedName);
+  localStorage.setItem('geo_user_avatar', savedAvatar);
+  
+  document.getElementById('authOverlay').style.display = 'none';
+  state.user.name = savedName;
+  state.user.avatar = savedAvatar;
+  loadServerData();
+  requestLocation();
+}
+
 const defaultState={
   user:{
-    name:'کاربر من', username:'my_user',
+    name: savedName || 'کاربر مهمان', username:'user_' + Math.floor(Math.random()*1000),
     bio:'آماده برای ارتباطات جدید', city:'تهران',
-    avatar:'https://i.pravatar.cc/150?img=33', ghost:false,
+    avatar: savedAvatar || 'https://i.pravatar.cc/150?img=33', ghost:false,
     onlineStatus:true, unknownMessages:true, notifMessages:true, notifStories:true,
     readReceipts:true, storyAutoplay:true, sound:true, preciseLocation:true,
     saveHistory:true, showDistance:true, twoStep:false, darkMode:true, globalSearch:true
@@ -367,7 +405,7 @@ const defaultState={
   radius:5,
   publicChat:[],
   stories:[],
-  pins:[] // کاملاً خالی از افراد فیک
+  pins:[]
 };
 
 function clone(x){return JSON.parse(JSON.stringify(x))}
@@ -394,7 +432,6 @@ clusters=L.markerClusterGroup({showCoverageOnHover:false,removeOutsideVisibleBou
 
 const API_BASE = 'https://geosocial-server-1.onrender.com';
 
-// دریافت اطلاعات زنده از دیتابیس سرور
 async function loadServerData() {
   try {
     const res = await fetch(`${API_BASE}/api/data`);
@@ -414,7 +451,27 @@ async function loadServerData() {
   }
 }
 
-// ارسال پیام به چت عمومی سرور
+// ارسال موقعیت کاربر جاری به سرور
+async function sendMyLocationToServer() {
+  if(!state.user.name) return;
+  try {
+    await fetch(`${API_BASE}/api/update-location`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: state.user.name,
+        avatar: state.user.avatar,
+        lat: state.coords.lat,
+        lng: state.coords.lng,
+        caption: state.user.bio || 'کاربر GeoSocial',
+        status: 'online'
+      })
+    });
+  } catch(e) {
+    console.error("خطا در ارسال لوکیشن");
+  }
+}
+
 async function sendPublicMessage(){
   const input=document.getElementById('publicMsgInput'), text=input.value.trim();
   if(!text)return;
@@ -439,7 +496,6 @@ async function sendPublicMessage(){
   }
 }
 
-
 function updateMyMarker(){
   if(myMarker){map.removeLayer(myMarker);myMarker=null}
   if(state.user.ghost)return;
@@ -462,6 +518,9 @@ function mapPinIcon(p){
 function renderMap(){
   clusters.clearLayers();let n=0;
   state.pins.forEach(p=>{
+    // اگر کاربر خودش بود، روی مارکر دوستان نمایش ندهیم (چون لوکیشن خودمون نقطه آبی متمایز دارد)
+    if(p.name === state.user.name) return;
+    
     const d=dist(state.coords.lat,state.coords.lng,Number(p.lat),Number(p.lng));
     if(d>state.radius)return;n++;
     const m=L.marker([Number(p.lat),Number(p.lng)],{icon:mapPinIcon(p)});
@@ -489,7 +548,10 @@ function requestLocation(){
   if(!navigator.geolocation){toast('مرورگر شما GPS ندارد');return}
   navigator.geolocation.getCurrentPosition(p=>{
     state.coords={lat:p.coords.latitude,lng:p.coords.longitude};
-    map.flyTo([state.coords.lat,state.coords.lng],16,{duration:.45});drawRadiusCircle();renderMap();
+    map.flyTo([state.coords.lat,state.coords.lng],16,{duration:.45});
+    drawRadiusCircle();
+    renderMap();
+    sendMyLocationToServer(); // ارسال لوکیشن جدید به سرور
     toast('موقعیت GPS با موفقیت دریافت شد')
   },err=>{toast('خطا در دریافت موقعیت مکانی')},{enableHighAccuracy:true,timeout:15000,maximumAge:15000})
 }
@@ -674,30 +736,6 @@ function renderPublicFeed(){
     box.appendChild(item);
   });
   requestAnimationFrame(()=>box.scrollTop=box.scrollHeight);
-}
-
-async function sendPublicMessage(){
-  const input=document.getElementById('publicMsgInput'), text=input.value.trim();
-  if(!text)return;
-  try {
-    const res = await fetch('/api/public-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: state.user.name,
-        avatar: state.user.avatar,
-        text: text
-      })
-    });
-    if(res.ok) {
-      const newMsg = await res.json();
-      state.publicChat.push(newMsg);
-      input.value='';
-      renderPublicFeed();
-    }
-  } catch(e) {
-    toast('خطا در ارسال پیام به سرور');
-  }
 }
 
 function handlePublicKeyDown(e){
@@ -912,12 +950,13 @@ function handlePhoto(e){
 document.getElementById('radius').value=state.radius;
 document.getElementById('radiusValue').textContent=String(state.radius).replace('.0','');
 
-// دریافت اطلاعات و همگام‌سازی خودکار هر ۱۰ ثانیه
-loadServerData();
-setInterval(loadServerData, 10000);
+if(savedName) {
+  loadServerData();
+  setInterval(loadServerData, 5000); // به‌روزرسانی خودکار هر ۵ ثانیه برای دریافت لوکیشن بقیه
+}
 
 drawRadiusCircle();
-requestLocation(); // درخواست خودکار GPS هنگام ورود به برنامه
+requestLocation();
 setTimeout(()=>map.invalidateSize(),250);
 window.addEventListener('resize',()=>map.invalidateSize());
 </script>
