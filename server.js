@@ -12,7 +12,7 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// تابع قدرتمند برای ساخت خودکار جدول‌ها
+// ساخت خودکار جدول‌ها هنگام شروع سرور
 async function initDB() {
   try {
     console.log("Connecting to database and checking tables...");
@@ -57,8 +57,6 @@ async function initDB() {
     console.error("❌ Error initializing database:", err);
   }
 }
-
-// صدا زدن تابع ساخت جدول‌ها بلافاصله پس از اجرا
 initDB();
 
 // API دریافت اطلاعات
