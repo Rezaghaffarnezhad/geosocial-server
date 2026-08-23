@@ -12,6 +12,11 @@ let db = {
   stories: []
 };
 
+// ۱. رفع ارور Cannot GET / (نمایش پیام خوش‌آمدگویی در صفحه اصلی سرور)
+app.get('/', (req, res) => {
+  res.send('GeoSocial Server is Running Successfully! 🚀');
+});
+
 // دریافت تمام اطلاعات برنامه
 app.get('/api/data', (req, res) => {
   res.json(db);
@@ -22,7 +27,6 @@ app.post('/api/update-location', (req, res) => {
   const { name, avatar, lat, lng, caption, status } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
 
-  // بررسی اینکه آیا کاربر از قبل در لیست پین‌ها وجود دارد یا خیر
   let existingPin = db.pins.find(p => p.name === name);
 
   if (existingPin) {
@@ -65,5 +69,5 @@ app.post('/api/public-chat', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
