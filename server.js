@@ -1,106 +1,69 @@
 const express = require('express');
-const { Pool } = require('pg');
-const path = require('path');
-const cors = require('cors'); // ۱. اضافه‌کردن پکیج cors برای ارتباط بدون مشکل با اپلیکیشن
-
+const cors = require('cors');
 const app = express();
 
-// ۲. فعال‌سازی CORS برای اجازه دادن به اپلیکیشن و وب‌ویو برای ارسال درخواست
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json());
 
-// ۳. سرو کردن فایل‌های استاتیک از پوشه روت (یا جایی که index.html قرار دارد)
-app.use(express.static(__dirname)); 
-// اگر index.html داخل پوشه public است، خط بالا را به این صورت تغییر دهید:
-// app.use(express.static(path.join(__dirname, 'public')));
+// حافظه موقت سرور برای نگهداری پین‌ها، چت‌ها و استوری‌ها
+let db = {
+  pins: [],
+  publicChat: [],
+  stories: []
+};
 
-// اتصال به دیتابیس PostgreSQL
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+// دریافت تمام اطلاعات برنامه
+app.get('/api/data', (req, res) => {
+  res.json(db);
 });
 
-// ساخت خودکار جدول‌ها هنگام شروع سرور
-async function initDB() {
-  try {
-    console.log("Connecting to database and checking tables...");
-    
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(50) UNIQUE,
-        name VARCHAR(100),
-        bio TEXT,
-        city VARCHAR(50),
-        avatar TEXT,
-        lat DECIMAL(10, 6),
-        lng DECIMAL(10, 6),
-        status VARCHAR(20) DEFAULT 'online'
-      );
-    `);
+// ثبت یا بروزرسانی موقعیت مکانی هر کاربر
+app.post('/api/update-location', (req, res) => {
+  const { name, avatar, lat, lng, caption, status } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name is required' });
 
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS public_chat (
-        id SERIAL PRIMARY KEY,
-        sender_name VARCHAR(100),
-        avatar TEXT,
-        text TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
+  // بررسی اینکه آیا کاربر از قبل در لیست پین‌ها وجود دارد یا خیر
+  let existingPin = db.pins.find(p => p.name === name);
 
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS stories (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100),
-        avatar TEXT,
-        media TEXT,
-        likes INT DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    console.log("✅ Database tables checked/created successfully!");
-  } catch (err) {
-    console.error("❌ Error initializing database:", err);
-  }
-}
-initDB();
-
-// API دریافت اطلاعات
-app.get('/api/data', async (req, res) => {
-  try {
-    const users = await pool.query('SELECT * FROM users');
-    const publicChat = await pool.query('SELECT * FROM public_chat ORDER BY id ASC LIMIT 50');
-    const stories = await pool.query('SELECT * FROM stories ORDER BY id DESC');
-    
-    res.json({
-      pins: users.rows,
-      publicChat: publicChat.rows,
-      stories: stories.rows
+  if (existingPin) {
+    existingPin.lat = lat;
+    existingPin.lng = lng;
+    existingPin.avatar = avatar || existingPin.avatar;
+    existingPin.caption = caption || existingPin.caption;
+    existingPin.status = status || 'online';
+  } else {
+    db.pins.push({
+      id: Date.now(),
+      name,
+      avatar: avatar || 'https://i.pravatar.cc/150?img=33',
+      lat,
+      lng,
+      caption: caption || 'کاربر جدید',
+      status: 'online',
+      chat: []
     });
-  } catch (err) {
-    console.error("GET /api/data error:", err);
-    res.status(500).json({ error: err.message });
   }
+
+  res.json({ success: true, pins: db.pins });
 });
 
-// API ارسال پیام به چت عمومی
-app.post('/api/public-chat', async (req, res) => {
+// ثبت پیام چت عمومی
+app.post('/api/public-chat', (req, res) => {
   const { name, avatar, text } = req.body;
-  try {
-    const result = await pool.query(
-      'INSERT INTO public_chat (sender_name, avatar, text) VALUES ($1, $2, $3) RETURNING *',
-      [name, avatar, text]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error("POST /api/public-chat error:", err);
-    res.status(500).json({ error: err.message });
-  }
+  if (!text) return res.status(400).json({ error: 'Text is required' });
+
+  const newMsg = {
+    id: Date.now(),
+    name: name || 'ناشناس',
+    avatar: avatar || '',
+    text
+  };
+
+  db.publicChat.push(newMsg);
+  res.json(newMsg);
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
