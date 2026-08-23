@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>GeoSocial - Render PostgreSQL</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}html,body,#map{margin:0;width:100%;height:100%;font-family:system-ui;background:#0e1621;color:#fff}
+#map{position:absolute;inset:0}
+.panel{position:absolute;z-index:100;left:10px;right:10px;top:10px;background:#17212b;border:1px solid #263545;border-radius:12px;padding:10px;box-shadow:0 5px 20px #0008}
+.row{display:flex;gap:7px;margin-bottom:7px}.row>*{flex:1}
+input,button{border:1px solid #33485c;border-radius:8px;padding:10px;background:#0e1621;color:#fff}
+button{background:#2aabee;border:0;font-weight:700;cursor:pointer}
+#people{position:absolute;z-index:110;left:10px;right:10px;bottom:10px;max-height:45vh;overflow:auto;background:#17212b;border-radius:12px;padding:10px;display:none}
+.person{display:flex;gap:10px;align-items:center;padding:10px;border-bottom:1px solid #263545;cursor:pointer}
+.person img{width:42px;height:42px;border-radius:50%;object-fit:cover}
+.small{font-size:11px;color:#91a4b8}
+#status{font-size:11px;color:#8fb5ce;margin-top:6px}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="panel">
+  <div class="row">
+    <input id="name" placeholder="نام شما" value="کاربر GeoSocial">
+    <input id="username" placeholder="نام کاربری">
+  </div>
+  <div class="row">
+    <button onclick="register()">ثبت/ورود</button>
+    <button onclick="locate()">GPS و بروزرسانی</button>
+    <button onclick="loadPeople()">افراد نزدیک</button>
+  </div>
+  <div id="status">ابتدا ثبت/ورود را بزنید.</div>
+</div>
+
+<div id="people"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map=L.map("map").setView([35.6892,51.3890],13);
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+ {maxZoom:19,attribution:"© OpenStreetMap © CARTO"}).addTo(map);
+
+let me=null, myMarker=null, markers=[];
+
+function status(t){document.getElementById("status").textContent=t}
+
+async function api(url,options={}) {
+  const r=await fetch(url,{headers:{"Content-Type":"application/json"},...options});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.error||"request_failed");
+  return data;
+}
+
+async function register(){
+  try{
+    const name=document.getElementById("name").value.trim();
+    const username=document.getElementById("username").value.trim() || ("user_"+Date.now());
+    me=await api("/api/users",{method:"POST",body:JSON.stringify({
+      name,username,avatar:"https://i.pravatar.cc/150?u="+encodeURIComponent(username)
+    })});
+    localStorage.setItem("geosocialUserId",me.id);
+    status("کاربر ثبت شد. حالا GPS را فعال کنید.");
+    await locate();
+  }catch(e){status("خطا در ثبت کاربر: "+e.message)}
+}
+
+function getPosition(){
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation)return reject(new Error("GPS در این مرورگر موجود نیست"));
+    navigator.geolocation.getCurrentPosition(resolve,reject,{
+      enableHighAccuracy:true,timeout:15000,maximumAge:5000
+    });
+  });
+}
+
+async function locate(){
+  try{
+    if(!me){
+      const id=localStorage.getItem("geosocialUserId");
+      if(id){
+        me=await api("/api/people/"+id);
+      }else{
+        return status("ابتدا ثبت/ورود را بزنید.");
+      }
+    }
+    const p=await getPosition();
+    await api("/api/location",{method:"POST",body:JSON.stringify({
+      userId:me.id,lat:p.coords.latitude,lng:p.coords.longitude,precise:true
+    })});
+    const pos=[p.coords.latitude,p.coords.longitude];
+    map.setView(pos,16);
+    if(myMarker)map.removeLayer(myMarker);
+    myMarker=L.circleMarker(pos,{radius:8,color:"#2aabee",fillOpacity:1}).addTo(map).bindPopup("موقعیت شما");
+    status("موقعیت واقعی شما ذخیره شد.");
+    await loadPeople();
+  }catch(e){status("خطای GPS/سرور: "+e.message)}
+}
+
+async function loadPeople(){
+  try{
+    if(!me) return status("ابتدا ثبت/ورود را بزنید.");
+    const p=await getPosition();
+    await api("/api/location",{method:"POST",body:JSON.stringify({
+      userId:me.id,lat:p.coords.latitude,lng:p.coords.longitude,precise:true
+    }));
+    const radius=5;
+    const data=await api(`/api/people/nearby?lat=${p.coords.latitude}&lng=${p.coords.longitude}&radius=${radius}&userId=${me.id}`);
+
+    markers.forEach(m=>map.removeLayer(m));markers=[];
+    const box=document.getElementById("people");box.innerHTML="";
+    box.style.display="block";
+
+    if(!data.people.length){
+      box.innerHTML="<div class='small'>هیچ کاربر واقعی دیگری در این شعاع ثبت نشده است.</div>";
+      return;
+    }
+
+    data.people.forEach(person=>{
+      const marker=L.marker([person.latitude,person.longitude]).addTo(map);
+      marker.bindPopup(`<b>${escapeHtml(person.name)}</b><br>${Number(person.distance_km).toFixed(1)} کیلومتر`);
+      markers.push(marker);
+
+      const el=document.createElement("div");
+      el.className="person";
+      el.innerHTML=`<img src="${escapeAttr(person.avatar||"https://i.pravatar.cc/150?u="+person.id)}"><div><b>${escapeHtml(person.name)}</b><div class="small">${Number(person.distance_km).toFixed(1)} کیلومتر • ${person.online?"آنلاین":"آخرین مشاهده: "+new Date(person.last_seen).toLocaleTimeString("fa-IR")}</div></div>`;
+      el.onclick=()=>{map.flyTo([person.latitude,person.longitude],17);marker.openPopup()};
+      box.appendChild(el);
+    });
+    status(data.people.length+" کاربر واقعی از PostgreSQL دریافت شد.");
+  }catch(e){status("خطا در دریافت افراد: "+e.message)}
+}
+
+function escapeHtml(s){
+  return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function escapeAttr(s){return escapeHtml(s)}
+
+setInterval(async()=>{
+  if(!me)return;
+  try{
+    await api("/api/heartbeat",{method:"POST",body:JSON.stringify({userId:me.id})});
+  }catch(e){}
+},30000);
+
+window.addEventListener("beforeunload",()=>{
+  if(me){
+    navigator.sendBeacon("/api/offline",new Blob(
+      [JSON.stringify({userId:me.id})],{type:"application/json"}
+    ));
+  }
+});
+
+(async()=>{
+  const id=localStorage.getItem("geosocialUserId");
+  if(id){
+    try{
+      me=await api("/api/people/"+id);
+      document.getElementById("name").value=me.name||"";
+      document.getElementById("username").value=me.username||"";
+      status("حساب قبلی پیدا شد. GPS را برای موقعیت فعلی فعال کنید.");
+    }catch(e){localStorage.removeItem("geosocialUserId")}
+  }
+})();
+</script>
+</body>
+</html>
