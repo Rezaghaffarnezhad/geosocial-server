@@ -6385,7 +6385,10 @@ async function saveTelegramUser(user) {
   if (error) console.error("User save error:", error);
 }
 
-</script>
+const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
 
-</body>
-</html>
+if (telegramUser) {
+  saveTelegramUser(telegramUser);
+}
+
+</script>
