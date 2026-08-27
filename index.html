@@ -6366,6 +6366,25 @@ window.addEventListener(
 
 initializeApp();
 
+async function saveTelegramUser(user) {
+  if (!user?.id) return;
+
+  const { error } = await supabase
+    .from("users")
+    .upsert({
+      telegram_id: String(user.id),
+      name: [user.first_name, user.last_name].filter(Boolean).join(" "),
+      username: user.username || null,
+      bio: user.bio || null,
+      avatar_url: user.photo_url || null,
+      last_seen: new Date().toISOString()
+    }, {
+      onConflict: "telegram_id"
+    });
+
+  if (error) console.error("User save error:", error);
+}
+
 </script>
 
 </body>
