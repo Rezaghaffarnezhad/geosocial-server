@@ -6390,5 +6390,39 @@ const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
 if (telegramUser) {
   saveTelegramUser(telegramUser);
 }
+function updateUserLocation() {
+  if (!navigator.geolocation) return;
 
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const telegramUser =
+        window.Telegram?.WebApp?.initDataUnsafe?.user;
+
+      if (!telegramUser?.id) return;
+
+      const { error } = await supabase
+        .from("users")
+        .update({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          last_seen: new Date().toISOString()
+        })
+        .eq("telegram_id", String(telegramUser.id));
+
+      if (error) {
+        console.error("Location update error:", error);
+      }
+    },
+    (error) => {
+      console.error("GPS error:", error);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 30000
+    }
+  );
+}
+
+updateUserLocation();
 </script>
