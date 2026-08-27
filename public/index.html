@@ -2629,7 +2629,41 @@ L.tileLayer(
       '&copy; OpenStreetMap contributors &copy; CARTO'
   }
 ).addTo(map);
+async function loadRealUsers() {
+  const { data, error } = await supabase
+    .from("users")
+    .select("telegram_id,name,username,bio,avatar_url,latitude,longitude,last_seen")
+    .not("latitude", "is", null)
+    .not("longitude", "is", null);
 
+  if (error) {
+    console.error("Load users error:", error);
+    return;
+  }
+
+  clusters.clearLayers();
+
+  data.forEach(user => {
+    const lat = Number(user.latitude);
+    const lng = Number(user.longitude);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    const marker = L.marker([lat, lng]);
+
+    marker.bindPopup(`
+      <div>
+        <strong>${user.name || user.username || "کاربر"}</strong>
+        ${user.username ? `<br>@${user.username}` : ""}
+        ${user.bio ? `<br>${user.bio}` : ""}
+      </div>
+    `);
+
+    clusters.addLayer(marker);
+  });
+}
+
+loadRealUsers();
 
 clusters=
   L.markerClusterGroup({
