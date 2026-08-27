@@ -2664,7 +2664,20 @@ async function loadRealUsers() {
 }
 
 loadRealUsers();
-
+supabase
+  .channel("users-realtime")
+  .on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "users"
+    },
+    () => {
+      loadRealUsers();
+    }
+  )
+  .subscribe();
 clusters=
   L.markerClusterGroup({
 
