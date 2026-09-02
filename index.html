@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17212b">
+<meta name="description" content="GeoSocial - شبکه اجتماعی مبتنی بر موقعیت مکانی">
+<title>GeoSocial Omni-Hybrid Pro</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+:root{--bg:#0e1621;--panel:#17212b;--blue:#2aabee;--text:#f5f5f5;--muted:#879ab0;--border:#263646;--green:#2ecc71;--danger:#e74c3c;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);--keyboard:0px}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text)}
+button,input,textarea{font:inherit}button{color:inherit}button:disabled{opacity:.5;pointer-events:none}
+input,textarea{direction:rtl}button{cursor:pointer}
+.hidden{display:none!important}.solid{background:var(--panel);border:1px solid var(--border)}
+#map{position:absolute;inset:0;z-index:1}
+.icon{width:40px;height:40px;border:0;background:transparent;display:grid;place-items:center;border-radius:10px;color:var(--muted)}
+.icon:hover{background:#22313f;color:#fff}.primary,.secondary{width:100%;padding:12px;border-radius:9px;font-weight:700}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid var(--border);background:var(--bg);color:#fff}
+.top{position:absolute;top:max(10px,var(--safe-top));left:10px;right:10px;z-index:10;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.search{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:13px;box-shadow:0 4px 15px #0007;pointer-events:auto}
+.search input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#fff;font-size:14px}.search i{color:var(--muted)}
+.badge{background:#2aabee22;color:var(--blue);padding:5px 9px;border-radius:8px;font-size:11px;white-space:nowrap}
+.stories{display:flex;gap:9px;overflow-x:auto;scrollbar-width:none;pointer-events:auto}.stories::-webkit-scrollbar{display:none}
+.story{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:55px;cursor:pointer}.ring{width:50px;height:50px;padding:2px;border-radius:50%;background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);position:relative}.ring.viewed{background:#657384}.ring img{width:100%;height:100%;border-radius:50%;object-fit:cover;border:2px solid var(--bg)}.story span{max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}
+.add{position:absolute;right:-1px;bottom:-1px;width:19px;height:19px;border-radius:50%;background:var(--blue);display:grid;place-items:center;font-size:12px;border:2px solid var(--bg)}
+.controls{position:absolute;right:10px;bottom:calc(78px + var(--safe-bottom));z-index:20;display:flex;flex-direction:column;align-items:center;gap:9px}.ctrl{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;box-shadow:0 3px 10px #0007}.radius{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px}.radius input{height:78px;writing-mode:vertical-lr;direction:rtl;accent-color:var(--blue)}
+.my-loc{width:15px;height:15px;border-radius:50%;background:var(--blue);border:2px solid #fff;box-shadow:0 0 0 4px #2aabee33,0 0 12px var(--blue)}
+.pin{position:relative;display:flex;align-items:center;justify-content:center}.pin img{width:42px;height:42px;border-radius:50%;border:2px solid var(--blue);object-fit:cover;background:var(--bg)}.led{position:absolute;bottom:0;right:0;width:11px;height:11px;border-radius:50%;border:2px solid var(--panel)}.online{background:var(--green)}.offline{background:#657384}.label{position:absolute;top:100%;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:9px;background:#17212bf2;padding:2px 6px;border-radius:5px;border:1px solid var(--border)}
+.public{position:absolute;left:10px;right:75px;bottom:calc(72px + var(--safe-bottom) + var(--keyboard));z-index:45;display:none;flex-direction:column;gap:6px;max-height:310px;pointer-events:none}.public.active{display:flex}.feed{overflow:auto;max-height:225px;display:flex;flex-direction:column;gap:8px;padding-top:8px}.feeditem{max-width:82%;padding:4px 7px;font-size:12px;pointer-events:auto}.feeditem.out{align-self:flex-start}.feeditem.in{align-self:flex-end}.sender{color:var(--blue);font-size:10px;font-weight:700}.feedtext{line-height:1.5;word-break:break-word}.inputline{display:flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:6px 8px;pointer-events:auto;box-shadow:0 5px 18px #0009}.inputline input{flex:1;background:transparent;border:0;outline:0;color:#fff;padding:7px}.send{width:38px;height:38px;border:0;border-radius:50%;background:var(--blue);display:grid;place-items:center;color:#fff;flex:0 0 auto}
+.global{position:absolute;left:10px;bottom:calc(72px + var(--safe-bottom));z-index:35}.global button{width:45px;height:45px;border:0;background:transparent;color:var(--blue);font-size:22px}
+.nav{position:absolute;left:10px;right:10px;bottom:max(8px,var(--safe-bottom));height:58px;z-index:50;border-radius:13px;display:flex;justify-content:space-around;align-items:center;box-shadow:0 7px 22px #0009}.navitem{color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;min-width:70px;height:100%;justify-content:center}.navitem.active{color:var(--blue)}.navitem i{font-size:17px}
+.card{position:absolute;left:12px;right:12px;bottom:calc(80px + var(--safe-bottom));z-index:40;display:none;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:0 10px 30px #000b}.card.open{display:block}.head{display:flex;align-items:center;gap:10px}.avatar{width:42px;height:42px;border-radius:50%;object-fit:cover}.grow{flex:1}.muted{color:var(--muted)}.small{font-size:11px}.bio{margin:9px 2px;line-height:1.6;color:var(--muted);font-size:11px}.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.actions button{border:1px solid var(--border);background:var(--bg);border-radius:8px;padding:10px 5px;font-size:11px}.actions .chat{background:var(--blue);border-color:var(--blue)}
+.sheet,.modal{position:absolute;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;transform:translateY(101%);transition:transform .25s ease}.sheet.open,.modal.open{transform:translateY(0)}.chathead,.modalhead{padding:max(10px,var(--safe-top)) 14px 10px;display:flex;align-items:center;justify-content:space-between;background:var(--panel);border-bottom:1px solid var(--border)}.userinfo{display:flex;align-items:center;gap:10px}.name{font-weight:700;font-size:14px}.status{font-size:11px;color:var(--blue)}
+.messages{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:8px;background:#0e1621 radial-gradient(#222f3e 1px,transparent 0);background-size:24px 24px}.msg{max-width:80%;padding:9px 12px;border-radius:13px;font-size:13px;line-height:1.5;word-break:break-word;background:var(--panel);border:1px solid var(--border);position:relative}.msg.in{align-self:flex-start}.msg.out{align-self:flex-end}.meta{font-size:9px;color:var(--blue);float:left;margin:5px 0 0 5px}.replybar{display:none;padding:8px 14px;background:var(--panel);border-top:1px solid var(--border);font-size:12px;align-items:center;gap:10px}.replybar.active{display:flex}.replybar div{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.inputbar{padding:9px 14px max(10px,var(--safe-bottom));background:var(--panel);display:flex;gap:8px;border-top:1px solid var(--border);align-items:center}.inputbar input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:21px;padding:10px 15px;color:#fff;outline:0}
+.modal{z-index:70;transform:translateX(101%)}.modalhead h3{font-size:16px}.body{padding:15px;overflow:auto;flex:1}.searchbox{padding:12px;border-bottom:1px solid var(--border);background:var(--panel)}.searchbox input,.form input,.form textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:#fff;outline:0}.listitem{display:flex;align-items:center;gap:12px;padding:12px 15px;border-bottom:1px solid var(--border);cursor:pointer}.empty{text-align:center;color:var(--muted);padding:40px 20px}
+.profile{text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}.profileavatar{width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--blue)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin:10px 0}.tile{background:var(--panel);border:1px solid var(--border);padding:12px;border-radius:10px}.form{width:100%;margin-bottom:13px;text-align:right}.form label{display:block;color:var(--muted);font-size:11px;margin-bottom:6px}.permission{width:100%;padding:13px;background:var(--panel);border:1px solid var(--border);border-radius:10px;margin-bottom:15px}.permission p{color:var(--muted);font-size:11px;line-height:1.6;margin:5px 0 10px}
+.viewer{position:absolute;inset:0;z-index:150;background:#000;display:none;flex-direction:column;justify-content:space-between;padding:max(10px,var(--safe-top)) 0 max(10px,var(--safe-bottom));touch-action:none;user-select:none}.viewer.active{display:flex}.progresses{display:flex;gap:4px;padding:0 10px;margin-bottom:8px}.progress{flex:1;height:2px;background:#fff4;overflow:hidden}.fill{width:0;height:100%;background:#fff}.storytop{position:relative;z-index:5}.storyhead{display:flex;align-items:center;gap:9px;padding:0 12px}.storyzone{position:absolute;top:65px;bottom:100px;width:35%;border:0;background:transparent;z-index:4}.prev{left:0}.next{right:0}.media{display:grid;place-items:center;flex:1;min-height:0;position:relative;z-index:2}.media img,.media video{width:100%;height:100%;object-fit:cover}.bottom{position:relative;z-index:5;padding:10px 12px;background:linear-gradient(to top,rgba(0,0,0,.9),transparent)}.comments{max-height:100px;overflow:auto;margin-bottom:8px;display:flex;flex-direction:column;gap:4px}.comment{background:#ffffff1a;border-radius:8px;padding:6px 10px;font-size:12px}.reply{display:flex;gap:8px;align-items:center}.reply input{flex:1;background:#ffffff26;border:1px solid #ffffff33;border-radius:20px;padding:10px 14px;color:#fff;outline:0}.toast{position:fixed;top:max(15px,var(--safe-top));left:50%;z-index:1000;transform:translate(-50%,-150%);padding:10px 18px;border-radius:12px;background:var(--panel);border:1px solid var(--border);box-shadow:0 6px 20px #0008;font-size:12px;transition:transform .25s;max-width:90%;text-align:center}.toast.show{transform:translate(-50%,0)}
+.auth{position:fixed;inset:0;z-index:9999;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px}.authbox{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:25px;text-align:center;box-shadow:0 15px 40px #000b}.logo{width:70px;height:70px;margin:0 auto 15px;border-radius:20px;background:var(--blue);display:grid;place-items:center;font-size:30px}.authbox p{color:var(--muted);font-size:12px;line-height:1.7;margin:7px 0 20px}.authbox input{width:100%;background:var(--bg);border:1px solid var(--border);color:#fff;padding:11px;border-radius:9px;margin-bottom:12px;outline:0}
+.ctx{position:fixed;z-index:500;display:none;flex-direction:column;width:175px;background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 8px 24px #000b}.ctx button{border:0;background:transparent;padding:11px 14px;text-align:right;display:flex;gap:10px;align-items:center;font-size:13px}.ctx button:hover{background:#22313f}
+@media(max-width:420px){.navitem{min-width:60px}.navitem span{font-size:9px}.actions button{font-size:10px}}
+</style>
+</head>
+<body>
+
+<div id="auth" class="auth">
+  <div class="authbox">
+    <div class="logo"><i class="fa-solid fa-location-dot"></i></div>
+    <h2>ورود به GeoSocial</h2>
+    <p>ورود به این نسخه با حساب ناشناس Supabase انجام می‌شود. نام نمایشی شما در پروفایل ذخیره خواهد شد.</p>
+    <input id="authName" maxlength="40" placeholder="مثلاً علی رضایی">
+    <button class="primary" onclick="login()">ورود به برنامه</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<div id="map"></div>
+
+<div class="top">
+  <div class="search solid">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input id="searchInput" placeholder="جستجوی مکان، شهر یا آدرس..." onkeydown="searchPlace(event)">
+    <span id="peopleBadge" class="badge">۰ فرد</span>
+  </div>
+  <div id="stories" class="stories"></div>
+</div>
+
+<div id="public" class="public">
+  <div id="feed" class="feed"></div>
+  <div class="inputline">
+    <button class="send" onclick="sendPublic()"><i class="fa-solid fa-paper-plane"></i></button>
+    <input id="publicInput" placeholder="پیام در چت عمومی..." onkeydown="publicKey(event)">
+  </div>
+</div>
+
+<div id="global" class="global"><button onclick="togglePublic()"><i class="fa-solid fa-comments"></i></button></div>
+
+<div class="controls">
+  <div class="radius"><span><b id="radiusValue">5</b> km</span><input id="radius" type="range" min=".5" max="30" step=".5" value="5" oninput="setRadius(this.value)"></div>
+  <button id="locateBtn" class="ctrl solid" title="کلیک: بروزرسانی GPS | نگه‌داشتن: انتخاب لوکیشن دستی">
+    <i class="fa-solid fa-location-crosshairs" style="color:var(--blue)"></i>
+  </button>
+  <button id="clearRoute" class="ctrl solid hidden" onclick="clearRoute()" style="color:var(--danger)"><i class="fa-solid fa-eraser"></i></button>
+</div>
+
+<div id="personCard" class="card">
+  <div class="head">
+    <img id="pcAvatar" class="avatar" src="">
+    <div class="grow"><b id="pcName"></b><div id="pcCaption" class="small muted"></div></div>
+    <button class="icon" onclick="closePersonCard()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div id="pcBio" class="bio"></div>
+  <div class="small muted" id="pcDistance"></div>
+  <div class="actions" style="margin-top:9px">
+    <button onclick="openOtherProfile()">پروفایل</button>
+    <button class="chat" onclick="openChat()">چت خصوصی</button>
+    <button onclick="routeToPerson()">مسیر</button>
+  </div>
+</div>
+
+<div id="sheet" class="sheet">
+  <div class="chathead">
+    <div class="userinfo" onclick="openOtherProfile()">
+      <img id="sheetAvatar" class="avatar">
+      <div><div id="sheetName" class="name">-</div><div id="sheetStatus" class="status">-</div></div>
+    </div>
+    <div style="display:flex;gap:8px"><button class="icon" onclick="routeToPerson()"><i class="fa-solid fa-route" style="color:var(--blue)"></i></button><button class="icon" onclick="closeChat()"><i class="fa-solid fa-xmark"></i></button></div>
+  </div>
+  <div id="messages" class="messages"></div>
+  <div id="replyBar" class="replybar"><div id="replyText"></div><button class="icon" onclick="cancelReply()"><i class="fa-solid fa-xmark"></i></button></div>
+  <div class="inputbar"><button class="send" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button><input id="msgInput" placeholder="نوشتن پیام خصوصی..." onkeydown="privateKey(event)"></div>
+</div>
+
+<div id="ctx" class="ctx">
+  <button onclick="ctxReply()"><i class="fa-solid fa-reply"></i> ریپلای</button>
+  <button onclick="ctxCopy()"><i class="fa-solid fa-copy"></i> کپی متن</button>
+  <button id="ctxEdit" onclick="ctxEdit()"><i class="fa-solid fa-pen"></i> ویرایش</button>
+  <button id="ctxDelete" onclick="ctxDelete()" style="color:var(--danger)"><i class="fa-solid fa-trash"></i> حذف</button>
+</div>
+
+<div id="viewer" class="viewer">
+  <div class="storytop">
+    <div id="progresses" class="progresses"></div>
+    <div class="storyhead">
+      <img id="storyAvatar" class="avatar" style="width:36px;height:36px">
+      <div class="grow"><b id="storyName"></b><div id="storyTime" class="small" style="color:#bbb"></div></div>
+      <button class="icon" style="color:#fff" onclick="closeStory()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+  <button class="storyzone prev" onclick="prevStory(event)"></button>
+  <button class="storyzone next" onclick="nextStory(event)"></button>
+  <div class="media"><img id="storyImg"><video id="storyVideo" playsinline controls style="display:none"></video></div>
+  <div class="bottom" onclick="event.stopPropagation()">
+    <div id="storyComments" class="comments"></div>
+    <div class="reply">
+      <button class="send" onclick="commentStory(event)"><i class="fa-solid fa-paper-plane"></i></button>
+      <button id="likeBtn" class="icon" style="color:#fff" onclick="likeStory(event)"><i class="fa-regular fa-heart"></i></button>
+      <input id="storyComment" placeholder="پیام به سازنده..." onkeydown="if(event.key==='Enter')commentStory(event)">
+    </div>
+  </div>
+  <input id="storyFile" type="file" accept="image/*,video/*" hidden onchange="uploadStory(event)">
+</div>
+
+<div id="chatsModal" class="modal">
+  <div class="modalhead"><h3>چت‌های خصوصی</h3><button class="icon" onclick="closeModals()"><i class="fa-solid fa-xmark"></i></button></div>
+  <div class="searchbox"><input id="chatSearch" placeholder="جستجو..." oninput="renderChats(this.value)"></div>
+  <div id="chatList" class="body" style="padding:0"></div>
+</div>
+
+<div id="peopleModal" class="modal">
+  <div class="modalhead"><h3>افراد حاضر (<span id="peopleCount">0</span>)</h3><button class="icon" onclick="closeModals()"><i class="fa-solid fa-xmark"></i></button></div>
+  <div class="searchbox"><input id="peopleSearch" placeholder="جستجو..." oninput="renderPeople(this.value)"></div>
+  <div id="peopleList" class="body" style="padding:0"></div>
+</div>
+
+<div id="profileModal" class="modal">
+  <div class="modalhead"><h3>پروفایل من</h3><button class="icon" onclick="closeModals()"><i class="fa-solid fa-xmark"></i></button></div>
+  <div class="body">
+    <div class="profile">
+      <div style="position:relative;cursor:pointer" onclick="chooseStory()"><div class="ring"><img id="profileAvatar"></div><span class="add">+</span></div>
+      <h3 id="profileName"></h3><p id="profileBio" class="muted small"></p>
+      <div class="grid"><div class="tile"><b id="connectionCount" style="color:var(--blue)">0</b><div class="small muted">افراد نزدیک</div></div><div class="tile"><b style="color:var(--green)">GPS</b><div class="small muted">موقعیت فعال</div></div></div>
+      <button class="primary" onclick="openSettings()">تنظیمات حساب</button>
+      <button class="secondary" onclick="choosePhoto()">تغییر عکس پروفایل</button>
+      <input id="photoInput" type="file" accept="image/*" hidden onchange="uploadPhoto(event)">
+      <button class="secondary" onclick="logout()">خروج از حساب</button>
+    </div>
+  </div>
+</div>
+
+<div id="otherModal" class="modal">
+  <div class="modalhead"><h3>پروفایل فرد</h3><button class="icon" onclick="closeModals()"><i class="fa-solid fa-xmark"></i></button></div>
+  <div class="body"><div class="profile">
+    <img id="otherAvatar" class="profileavatar"><h3 id="otherName"></h3><p id="otherBio" class="muted small"></p>
+    <div class="grid"><div class="tile"><b id="otherDistance" style="color:var(--blue)">-</b><div class="small muted">فاصله</div></div><div class="tile"><b id="otherStatus" style="color:var(--green)">-</b><div class="small muted">وضعیت</div></div></div>
+    <button class="primary" onclick="openChat()">ارسال پیام</button><button class="secondary" onclick="routeToPerson()">مسیریابی</button>
+  </div></div>
+</div>
+
+<div id="settingsModal" class="modal">
+  <div class="modalhead"><h3>تنظیمات حساب</h3><button class="icon" onclick="closeModals()"><i class="fa-solid fa-xmark"></i></button></div>
+  <div class="body">
+    <div class="permission"><b>موقعیت مکانی</b><p>برای دریافت موقعیت واقعی روی «دریافت GPS» بزنید. برای انتخاب دستی، دکمه بروزرسانی لوکیشن روی نقشه را حدود یک ثانیه نگه دارید و سپس نقطه دلخواه را روی نقشه لمس کنید.</p><button class="primary" onclick="locateMe()">دریافت GPS</button></div>
+    <div class="form"><label>نام نمایشی</label><input id="setName" maxlength="40"></div>
+    <div class="form"><label>نام کاربری</label><input id="setUsername" maxlength="30"></div>
+    <div class="form"><label>بیوگرافی</label><textarea id="setBio" rows="3" maxlength="200"></textarea></div>
+    <div class="form"><label>شهر</label><input id="setCity" maxlength="50"></div>
+    <button class="primary" onclick="saveSettings()">ذخیره تغییرات</button>
+  </div>
+</div>
+
+<div class="nav solid">
+  <div class="navitem active" onclick="nav('map',this)"><i class="fa-solid fa-map"></i><span>نقشه</span></div>
+  <div class="navitem" onclick="nav('chats',this)"><i class="fa-solid fa-paper-plane"></i><span>چت‌ها</span></div>
+  <div class="navitem" onclick="nav('profile',this)"><i class="fa-solid fa-user"></i><span>پروفایل</span></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+'use strict';
+
+/*
+  امنیت:
+  فقط Publishable/Anon Key را اینجا قرار دهید.
+  هر کلیدی که با sb_secret_ یا service_role شروع می‌شود نباید در مرورگر باشد.
+*/
+const SUPABASE_URL='https://dxdskvkcmovotzxixxhd.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_secret_3695HS7rtx64dwNQd9M-KQ_F7f-N4sl';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+
+const CFG=Object.freeze({
+  radius:5, locationInterval:15000, locationFilterMeters:20,
+  maxPublic:50, maxMessages:100, storyDuration:5000,
+  avatarBucket:'avatars', storyBucket:'stories'
+});
+
+const DEFAULT_AVATAR='https://i.pravatar.cc/150?img=33';
+const state={user:null,profile:null,coords:{lat:35.6892,lng:51.3890},pins:[],public:[],stories:[],activePin:null,activeConversation:null,reply:null,selectedMessage:null,editingId:null,currentStory:-1,storyTimer:null,lastLocation:0,manualLocation:false,pressTimer:null,pressTriggered:false};
+let map,cluster,myMarker,radiusCircle,routeLayer,searchLayer,channels=[];
+
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toast=m=>{const e=$('toast');e.textContent=m;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),2600)};
+const dist=(a,b,c,d)=>{const R=6371,p=Math.PI/180,dl=(c-a)*p,dg=(d-b)*p,x=Math.sin(dl/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(dg/2)**2;return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))};
+const online=p=>p?.online===true || (p?.last_seen && Date.now()-new Date(p.last_seen).getTime()<120000);
+
+function initMap(){
+  map=L.map('map',{zoomControl:false,preferCanvas:true}).setView([state.coords.lat,state.coords.lng],13);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors &copy; CARTO'}).addTo(map);
+  cluster=L.markerClusterGroup({showCoverageOnHover:false,removeOutsideVisibleBounds:true,maxClusterRadius:45}).addTo(map);
+  map.on('zoomend',renderMap);
+}
+
+function pinIcon(p){
+  const label=map.getZoom()>=17?`<span class="label">${esc(p.name)}</span>`:'';
+  return L.divIcon({className:'',html:`<div class="pin"><img src="${esc(p.avatar||DEFAULT_AVATAR)}"><i class="led ${online(p)?'online':'offline'}"></i>${label}</div>`,iconSize:[42,42],iconAnchor:[21,21]});
+}
+
+function renderMyMarker(){
+  if(myMarker){map.removeLayer(myMarker);myMarker=null}
+  if(state.profile?.ghost)return;
+  myMarker=L.marker([state.coords.lat,state.coords.lng],{icon:L.divIcon({className:'',html:'<div class="my-loc"></div>',iconSize:[15,15],iconAnchor:[7.5,7.5]}),zIndexOffset:1000}).addTo(map);
+}
+function drawRadius(){
+  if(radiusCircle)map.removeLayer(radiusCircle);
+  radiusCircle=L.circle([state.coords.lat,state.coords.lng],{radius:state.radius*1000,color:'#2aabee',weight:2,fillOpacity:.06,interactive:false}).addTo(map);
+}
+function setRadius(v){state.radius=Number(v);$('radiusValue').textContent=String(state.radius).replace('.0','');drawRadius();renderMap()}
+
+function renderMap(){
+  if(!cluster)return;cluster.clearLayers();let n=0;
+  for(const p of state.pins){
+    if(!p?.id || p.id===state.user?.id || !Number.isFinite(Number(p.lat)) || !Number.isFinite(Number(p.lng)))continue;
+    const d=dist(state.coords.lat,state.coords.lng,Number(p.lat),Number(p.lng));
+    if(d>state.radius)continue;n++;
+    const m=L.marker([p.lat,p.lng],{icon:pinIcon(p)});
+    m.on('click',e=>{L.DomEvent.stopPropagation(e);state.activePin=p;openPersonCard(p)});
+    cluster.addLayer(m);
+  }
+  $('peopleBadge').textContent=`${n} فرد`;renderMyMarker();
+}
+
+async function ensureSession(){
+  const {data,error}=await sb.auth.getSession();
+  if(error)throw error;
+  if(data.session){state.user=data.session.user;await loadProfile();return true}
+  return false;
+}
+
+async function login(){
+  const name=$('authName').value.trim();if(!name)return toast('لطفاً نام خود را وارد کنید');
+  const {data,error}=await sb.auth.signInAnonymously();
+  if(error){console.error(error);return toast('ورود ناشناس در Supabase فعال نیست. Anonymous Sign-ins را فعال کنید.')}
+  state.user=data.user;
+  await saveProfile({name});
+  $('auth').style.display='none';await bootData();locateMe();
+}
+
+async function logout(){
+  await stopRealtime();
+  await sb.auth.signOut();
+  location.reload();
+}
+
+async function loadProfile(){
+  const {data,error}=await sb.from('profiles').select('*').eq('id',state.user.id).maybeSingle();
+  if(error)throw error;
+  if(!data){$('auth').style.display='flex';return}
+  state.profile=data;
+  state.coords={lat:Number(data.lat)||35.6892,lng:Number(data.lng)||51.3890};
+}
+
+async function saveProfile(patch){
+  const base={id:state.user.id,name:state.profile?.name||'کاربر',username:state.profile?.username||('user_'+state.user.id.slice(0,8)),avatar:state.profile?.avatar||DEFAULT_AVATAR,bio:state.profile?.bio||'آماده برای ارتباطات جدید',city:state.profile?.city||'',ghost:state.profile?.ghost||false,precise_location:state.profile?.precise_location!==false,show_distance:state.profile?.show_distance!==false,story_autoplay:state.profile?.story_autoplay!==false,lat:state.profile?.lat||state.coords.lat,lng:state.profile?.lng||state.coords.lng,last_seen:new Date().toISOString(),online:true,...patch};
+  const {data,error}=await sb.from('profiles').upsert(base).select().single();
+  if(error)throw error;state.profile=data;state.coords={lat:Number(data.lat)||state.coords.lat,lng:Number(data.lng)||state.coords.lng};
+}
+
+function initLocationButton(){
+  const btn=$('locateBtn');if(!btn)return;
+  const start=()=>{
+    state.pressTriggered=false;clearTimeout(state.pressTimer);
+    state.pressTimer=setTimeout(()=>{state.pressTriggered=true;enterManualLocationMode()},700);
+  };
+  const cancel=()=>clearTimeout(state.pressTimer);
+  btn.addEventListener('pointerdown',start);
+  btn.addEventListener('pointerup',cancel);
+  btn.addEventListener('pointerleave',cancel);
+  btn.addEventListener('pointercancel',cancel);
+  btn.addEventListener('click',e=>{
+    if(state.pressTriggered){e.preventDefault();state.pressTriggered=false;return}
+    locateMe();
+  });
+}
+function enterManualLocationMode(){
+  closeModals();state.manualLocation=true;
+  $('locateBtn')?.classList.add('manual-active');
+  toast('حالت انتخاب دستی فعال شد؛ نقطه موردنظر را روی نقشه لمس کنید');
+  map.getContainer().style.cursor='crosshair';
+  map.once('click',selectManualLocation);
+}
+async function selectManualLocation(e){
+  if(!state.manualLocation)return;
+  state.manualLocation=false;map.getContainer().style.cursor='';
+  $('locateBtn')?.classList.remove('manual-active');
+  const lat=e.latlng.lat,lng=e.latlng.lng;
+  state.coords={lat,lng};drawRadius();renderMap();map.flyTo([lat,lng],16,{duration:.45});
+  try{
+    await syncLocation();
+    await sb.from('profiles').update({precise_location:false}).eq('id',state.user.id);
+    if(state.profile)state.profile.precise_location=false;
+    toast('لوکیشن دستی ذخیره شد');
+  }catch(err){console.error(err);toast('ذخیره لوکیشن دستی انجام نشد')}
+}
+async function locateMe(){
+  if(!navigator.geolocation)return toast('مرورگر GPS را پشتیبانی نمی‌کند');
+  if(!window.isSecureContext && location.hostname!=='localhost')return toast('GPS فقط روی HTTPS کار می‌کند');
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude,lng=pos.coords.longitude,moved=dist(state.coords.lat,state.coords.lng,lat,lng)*1000;
+    state.coords={lat,lng};drawRadius();renderMap();map.flyTo([lat,lng],16,{duration:.45});
+    if(moved>=CFG.locationFilterMeters || Date.now()-state.lastLocation>=CFG.locationInterval)await syncLocation();
+    toast('موقعیت GPS دریافت شد');
+  },e=>toast(({1:'دسترسی به GPS رد شد',2:'موقعیت در دسترس نیست',3:'زمان GPS تمام شد'})[e.code]||'خطا در GPS'),{enableHighAccuracy:true,timeout:15000,maximumAge:10000});
+}
+
+async function syncLocation(){
+  if(!state.user||!state.profile)return;
+  const {error}=await sb.from('profiles').update({lat:state.coords.lat,lng:state.coords.lng,last_seen:new Date().toISOString(),online:true}).eq('id',state.user.id);
+  if(error)console.error(error);else state.lastLocation=Date.now();
+}
+
+async function bootData(){
+  try{await Promise.all([loadPeople(),loadPublic(),loadStories()]);renderMap();renderStories();renderPublic()}catch(e){console.error(e);toast('خطا در دریافت اطلاعات Supabase')}
+  await setupRealtime();
+}
+
+async function loadPeople(){
+  const {data,error}=await sb.from('profiles').select('id,name,username,avatar,bio,city,lat,lng,online,last_seen,ghost,show_distance').eq('ghost',false);
+  if(error)throw error;state.pins=(data||[]).filter(p=>p.id!==state.user.id);
+}
+async function loadPublic(){
+  const {data,error}=await sb.from('public_messages').select('*').order('created_at',{ascending:false}).limit(CFG.maxPublic);
+  if(error)throw error;state.public=(data||[]).reverse();
+}
+async function loadStories(){
+  const {data,error}=await sb.from('stories').select('*,profiles!stories_user_id_fkey(id,name,avatar)').gt('expires_at',new Date().toISOString()).order('created_at',{ascending:true});
+  if(error)throw error;
+  const ids=[...new Set((data||[]).map(x=>x.user_id))];
+  let viewed=new Set();
+  if(ids.length){const r=await sb.from('story_views').select('story_id').eq('user_id',state.user.id).in('story_id',data.map(x=>x.id));viewed=new Set((r.data||[]).map(x=>x.story_id))}
+  state.stories=(data||[]).map(s=>({...s,name:s.profiles?.name||'کاربر',avatar:s.profiles?.avatar||DEFAULT_AVATAR,viewed:viewed.has(s.id)}));
+}
+
+async function setupRealtime(){
+  await stopRealtime();
+  const pub=sb.channel('public-chat').on('postgres_changes',{event:'INSERT',schema:'public',table:'public_messages'},payload=>{state.public.push(payload.new);state.public=state.public.slice(-CFG.maxPublic);renderPublic()});
+  const prof=sb.channel('profiles-live').on('postgres_changes',{event:'*',schema:'public',table:'profiles'},payload=>{const p=payload.new;if(!p?.id||p.id===state.user.id)return;const i=state.pins.findIndex(x=>x.id===p.id);if(payload.eventType==='DELETE'){if(i>=0)state.pins.splice(i,1)}else if(p.ghost){if(i>=0)state.pins.splice(i,1)}else if(i>=0)state.pins[i]=p;else state.pins.push(p);renderMap()});
+  const story=sb.channel('stories-live').on('postgres_changes',{event:'INSERT',schema:'public',table:'stories'},async()=>{await loadStories();renderStories()});
+  const direct=sb.channel('dm-live').on('postgres_changes',{event:'*',schema:'public',table:'messages',filter:`receiver_id=eq.${state.user.id}`},async payload=>{await refreshActiveChat();});
+  channels=[pub,prof,story,direct];for(const c of channels)await c.subscribe();
+}
+
+async function stopRealtime(){for(const c of channels)try{await sb.removeChannel(c)}catch{}channels=[]}
+
+function togglePublic(){$('public').classList.toggle('active');if($('public').classList.contains('active')){$('publicInput').focus();renderPublic()}}
+function renderPublic(){
+  const box=$('feed');box.innerHTML='';
+  state.public.slice(-CFG.maxPublic).forEach(m=>{const out=m.sender_id===state.user?.id,e=document.createElement('div');e.className=`feeditem ${out?'out':'in'}`;e.innerHTML=(out?'':`<div class="sender">${esc(m.sender_name||'کاربر')}</div>`)+`<div class="feedtext">${esc(m.text)}</div>`;box.appendChild(e)});
+  requestAnimationFrame(()=>box.scrollTop=box.scrollHeight);
+}
+function publicKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPublic()}}
+async function sendPublic(){
+  const input=$('publicInput'),text=input.value.trim();if(!text||!state.user)return;
+  const {error}=await sb.from('public_messages').insert({sender_id:state.user.id,text});if(error){console.error(error);return toast('ارسال پیام انجام نشد')}input.value='';
+}
+
+function openPersonCard(p){state.activePin=p;$('pcAvatar').src=p.avatar||DEFAULT_AVATAR;$('pcName').textContent=p.name||'کاربر';$('pcCaption').textContent=p.username?`@${p.username}`:'کاربر GeoSocial';$('pcBio').textContent=p.bio||'اطلاعاتی ثبت نشده';$('pcDistance').textContent=`${dist(state.coords.lat,state.coords.lng,p.lat,p.lng).toFixed(1)} کیلومتر فاصله`;$('personCard').classList.add('open')}
+function closePersonCard(){$('personCard').classList.remove('open')}
+function openPeople(){renderPeople('');$('peopleModal').classList.add('open')}
+function renderPeople(q=''){
+  const box=$('peopleList'),needle=q.trim().toLowerCase();box.innerHTML='';let n=0;
+  state.pins.forEach(p=>{const hay=`${p.name} ${p.username||''} ${p.bio||''}`.toLowerCase();if(needle&&!hay.includes(needle))return;n++;const e=document.createElement('div');e.className='listitem';e.innerHTML=`<img class="avatar" src="${esc(p.avatar||DEFAULT_AVATAR)}"><div class="grow"><b>${esc(p.name)}</b><div class="small muted">${dist(state.coords.lat,state.coords.lng,p.lat,p.lng).toFixed(1)} کیلومتر • ${esc(p.city||p.bio||'کاربر')}</div></div><i class="fa-solid fa-location-dot" style="color:var(--blue)"></i>`;e.onclick=()=>{closeModals();map.flyTo([p.lat,p.lng],17,{duration:.35});openPersonCard(p)};box.appendChild(e)});
+  $('peopleCount').textContent=n;if(!n)box.innerHTML='<div class="empty">فردی پیدا نشد</div>';
+}
+$('peopleBadge').onclick=openPeople;
+
+function openChat(){if(!state.activePin)return;closePersonCard();closeModals();state.activeConversation=state.activePin.id;$('sheetAvatar').src=state.activePin.avatar||DEFAULT_AVATAR;$('sheetName').textContent=state.activePin.name;$('sheetStatus').textContent=online(state.activePin)?'آنلاین':'آفلاین';$('sheet').classList.add('open');refreshActiveChat();map.flyTo([state.activePin.lat,state.activePin.lng],15,{duration:.4})}
+function closeChat(){$('sheet').classList.remove('open');$('msgInput').blur();cancelReply()}
+async function refreshActiveChat(){
+  if(!state.activeConversation)return;
+  const {data,error}=await sb.from('messages').select('*').or(`and(sender_id.eq.${state.user.id},receiver_id.eq.${state.activeConversation}),and(sender_id.eq.${state.activeConversation},receiver_id.eq.${state.user.id})`).order('created_at',{ascending:true}).limit(CFG.maxMessages);
+  if(error){console.error(error);return}state.activeMessages=data||[];renderMessages();
+}
+function renderMessages(){
+  const box=$('messages');box.innerHTML='';
+  (state.activeMessages||[]).forEach(m=>{const out=m.sender_id===state.user.id,e=document.createElement('div');e.className=`msg ${out?'out':'in'}`;e.oncontextmenu=ev=>{ev.preventDefault();openCtx(ev,m)};e.onclick=ev=>{ev.stopPropagation();openCtx(ev,m)};e.innerHTML=m.deleted_at?'<i class="muted">پیام حذف شده</i>':(m.reply_text?`<div class="replybar active"><div>${esc(m.reply_text)}</div></div>`:'')+esc(m.text)+(out?'<span class="meta"><i class="fa-solid fa-check-double"></i></span>':'');box.appendChild(e)});
+  requestAnimationFrame(()=>box.scrollTop=box.scrollHeight);
+}
+function privateKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}}
+async function sendMessage(){
+  const input=$('msgInput'),text=input.value.trim();if(!text||!state.activeConversation)return;
+  if(state.editingId){const {error}=await sb.from('messages').update({text,edited_at:new Date().toISOString()}).eq('id',state.editingId).eq('sender_id',state.user.id);if(error)toast('ویرایش انجام نشد');state.editingId=null;input.value='';await refreshActiveChat();return}
+  const row={sender_id:state.user.id,receiver_id:state.activeConversation,text,reply_to:state.reply?.id||null};
+  const {error}=await sb.from('messages').insert(row);if(error){console.error(error);return toast('ارسال پیام انجام نشد')}input.value='';cancelReply();await refreshActiveChat();
+}
+function cancelReply(){state.reply=null;$('replyBar').classList.remove('active')}
+function openCtx(ev,m){state.selectedMessage=m;const menu=$('ctx');menu.style.display='flex';menu.style.left=Math.min(ev.clientX,innerWidth-185)+'px';menu.style.top=Math.min(ev.clientY,innerHeight-220)+'px';const own=m.sender_id===state.user.id;$('ctxEdit').style.display=own?'flex':'none';$('ctxDelete').style.display=own?'flex':'none'}
+function ctxReply(){if(!state.selectedMessage)return;state.reply=state.selectedMessage;$('replyText').textContent='پاسخ به: '+state.selectedMessage.text;$('replyBar').classList.add('active');$('msgInput').focus();$('ctx').style.display='none'}
+async function ctxCopy(){try{await navigator.clipboard.writeText(state.selectedMessage.text);toast('متن کپی شد')}catch{toast('کپی انجام نشد')}$('ctx').style.display='none'}
+function ctxEdit(){if(!state.selectedMessage||state.selectedMessage.sender_id!==state.user.id)return;state.editingId=state.selectedMessage.id;$('msgInput').value=state.selectedMessage.text;$('msgInput').focus();$('ctx').style.display='none'}
+async function ctxDelete(){if(!state.selectedMessage||state.selectedMessage.sender_id!==state.user.id)return;const {error}=await sb.from('messages').update({deleted_at:new Date().toISOString()}).eq('id',state.selectedMessage.id).eq('sender_id',state.user.id);if(error)toast('حذف انجام نشد');else await refreshActiveChat();$('ctx').style.display='none'}
+document.addEventListener('click',e=>{if(!e.target.closest('#ctx,.msg'))$('ctx').style.display='none'});
+
+async function renderChats(q=''){
+  const box=$('chatList');box.innerHTML='';
+  const {data,error}=await sb.from('conversations').select('*').order('last_created_at',{ascending:false}); // view defined in SQL
+  if(error){box.innerHTML='<div class="empty">هنوز چتی وجود ندارد</div>';return}
+  const needle=q.toLowerCase();let n=0;
+  for(const c of data||[]){if(needle&&!`${c.name} ${c.last_text||''}`.toLowerCase().includes(needle))continue;n++;const e=document.createElement('div');e.className='listitem';e.innerHTML=`<img class="avatar" src="${esc(c.avatar||DEFAULT_AVATAR)}"><div class="grow"><b>${esc(c.name)}</b><div class="small muted">${esc(c.last_text||'بدون پیام')}</div></div>`;e.onclick=()=>{const p=state.pins.find(x=>x.id===c.user_id);if(p){closeModals();state.activePin=p;openChat()}};box.appendChild(e)}
+  if(!n)box.innerHTML='<div class="empty">هیچ چت خصوصی فعالی وجود ندارد</div>';
+}
+
+function refreshProfile(){const p=state.profile;$('profileAvatar').src=p.avatar||DEFAULT_AVATAR;$('profileName').textContent=p.name||'کاربر';$('profileBio').textContent=`@${p.username||''}${p.city?' • '+p.city:''}${p.bio?' • '+p.bio:''}`;$('connectionCount').textContent=state.pins.length}
+function openProfile(){refreshProfile();$('profileModal').classList.add('open')}
+function openSettings(){closeModals();const p=state.profile;$('setName').value=p.name||'';$('setUsername').value=p.username||'';$('setBio').value=p.bio||'';$('setCity').value=p.city||'';$('settingsModal').classList.add('open')}
+async function saveSettings(){
+  const name=$('setName').value.trim();if(!name)return toast('نام نمی‌تواند خالی باشد');
+  try{await saveProfile({name,username:$('setUsername').value.trim().replace(/\s+/g,'_'),bio:$('setBio').value.trim(),city:$('setCity').value.trim()});refreshProfile();renderStories();closeModals();await syncLocation();toast('تنظیمات ذخیره شد')}catch(e){console.error(e);toast('ذخیره تنظیمات انجام نشد')}
+}
+function choosePhoto(){$('photoInput').click()}
+async function uploadPhoto(e){
+  const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith('image/'))return toast('فقط تصویر مجاز است');
+  try{const path=`${state.user.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;const up=await sb.storage.from(CFG.avatarBucket).upload(path,file,{upsert:false,contentType:file.type});if(up.error)throw up.error;const pub=sb.storage.from(CFG.avatarBucket).getPublicUrl(path).data.publicUrl;await saveProfile({avatar:pub});refreshProfile();renderStories();toast('عکس پروفایل به‌روز شد')}catch(err){console.error(err);toast('آپلود عکس انجام نشد')}e.target.value=''
+}
+
+function renderStories(){
+  const box=$('stories');box.innerHTML='';
+  const own=document.createElement('div');own.className='story';own.innerHTML=`<div class="ring"><img src="${esc(state.profile?.avatar||DEFAULT_AVATAR)}"><span class="add">+</span></div><span>استوری شما</span>`;own.onclick=chooseStory;box.appendChild(own);
+  state.stories.forEach((s,i)=>{const e=document.createElement('div');e.className='story';e.innerHTML=`<div class="ring ${s.viewed?'viewed':''}"><img src="${esc(s.avatar||DEFAULT_AVATAR)}"></div><span>${esc(s.name)}</span>`;e.onclick=()=>openStory(i);box.appendChild(e)})
+}
+function chooseStory(){$('storyFile').click()}
+async function uploadStory(e){
+  const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith('image/')&&!file.type.startsWith('video/'))return toast('فرمت فایل مجاز نیست');
+  try{const path=`${state.user.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;const up=await sb.storage.from(CFG.storyBucket).upload(path,file,{upsert:false,contentType:file.type});if(up.error)throw up.error;const pub=sb.storage.from(CFG.storyBucket).getPublicUrl(path).data.publicUrl;const {error}=await sb.from('stories').insert({user_id:state.user.id,media_url:pub,media_type:file.type.startsWith('video/')?'video':'image'});if(error)throw error;await loadStories();renderStories();openStory(0);toast('استوری منتشر شد')}catch(err){console.error(err);toast('انتشار استوری انجام نشد')}e.target.value=''
+}
+
+async function openStory(i){
+  const s=state.stories[i];if(!s)return;state.currentStory=i;clearTimeout(state.storyTimer);
+  if(!s.viewed){await sb.from('story_views').upsert({story_id:s.id,user_id:state.user.id},{onConflict:'story_id,user_id'});s.viewed=true}
+  $('storyAvatar').src=s.avatar||DEFAULT_AVATAR;$('storyName').textContent=s.name;$('storyTime').textContent=new Date(s.created_at).toLocaleString('fa-IR');
+  const video=s.media_type==='video'||/\.(mp4|webm|ogg)(\?|$)/i.test(s.media_url);$('storyImg').style.display=video?'none':'block';$('storyVideo').style.display=video?'block':'none';
+  if(video){$('storyVideo').src=s.media_url;$('storyVideo').play().catch(()=>{})}else $('storyImg').src=s.media_url;
+  const {data:comments}=await sb.from('story_comments').select('*,profiles!story_comments_user_id_fkey(name)').eq('story_id',s.id).order('created_at',{ascending:true});$('storyComments').innerHTML=(comments||[]).map(c=>`<div class="comment"><b>${esc(c.profiles?.name||'کاربر')}:</b> ${esc(c.text)}</div>`).join('');
+  const {data:like}=await sb.from('story_likes').select('story_id').eq('story_id',s.id).eq('user_id',state.user.id).maybeSingle();$('likeBtn').innerHTML=like?'<i class="fa-solid fa-heart"></i>':'<i class="fa-regular fa-heart"></i>';
+  renderProgress();$('viewer').classList.add('active');state.storyTimer=setTimeout(nextStory,CFG.storyDuration);renderStories()
+}
+function renderProgress(){const b=$('progresses');b.innerHTML=state.stories.map((_,i)=>`<div class="progress"><div class="fill" style="width:${i<state.currentStory?'100%':0}"></div></div>`).join('');const f=b.children[state.currentStory]?.firstElementChild;if(f){requestAnimationFrame(()=>{f.style.transition=`width ${CFG.storyDuration}ms linear`;f.style.width='100%'})}}
+function closeStory(){clearTimeout(state.storyTimer);$('storyVideo').pause();$('viewer').classList.remove('active');state.currentStory=-1}
+function nextStory(e){e?.stopPropagation();if(state.currentStory<0)return;if(state.currentStory>=state.stories.length-1)return closeStory();openStory(state.currentStory+1)}
+function prevStory(e){e?.stopPropagation();if(!state.stories.length)return;openStory(state.currentStory<=0?state.stories.length-1:state.currentStory-1)}
+async function likeStory(e){e?.stopPropagation();const s=state.stories[state.currentStory];if(!s)return;const {data}=await sb.from('story_likes').select('story_id').eq('story_id',s.id).eq('user_id',state.user.id).maybeSingle();if(data)await sb.from('story_likes').delete().eq('story_id',s.id).eq('user_id',state.user.id);else await sb.from('story_likes').insert({story_id:s.id,user_id:state.user.id});openStory(state.currentStory)}
+async function commentStory(e){e?.stopPropagation();const text=$('storyComment').value.trim(),s=state.stories[state.currentStory];if(!text||!s)return;const {error}=await sb.from('story_comments').insert({story_id:s.id,user_id:state.user.id,text});if(error)toast('ارسال نظر انجام نشد');else{$('storyComment').value='';openStory(state.currentStory)}}
+
+async function openOtherProfile(){const p=state.activePin;if(!p)return;$('otherAvatar').src=p.avatar||DEFAULT_AVATAR;$('otherName').textContent=p.name;$('otherBio').textContent=p.bio||'اطلاعاتی ثبت نشده';$('otherDistance').textContent=`${dist(state.coords.lat,state.coords.lng,p.lat,p.lng).toFixed(1)} km`;$('otherStatus').textContent=online(p)?'آنلاین':'آفلاین';closePersonCard();$('otherModal').classList.add('open')}
+async function routeToPerson(){if(!state.activePin)return;closePersonCard();closeModals();const p=state.activePin;try{const u=`https://router.project-osrm.org/route/v1/driving/${state.coords.lng},${state.coords.lat};${p.lng},${p.lat}?overview=full&geometries=geojson`;const r=await fetch(u);const d=await r.json();if(!d.routes?.length)throw 0;if(routeLayer)map.removeLayer(routeLayer);routeLayer=L.polyline(d.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]),{color:'#2aabee',weight:5,opacity:.85}).addTo(map);map.fitBounds(routeLayer.getBounds(),{padding:[45,45]});$('clearRoute').classList.remove('hidden');toast('مسیر ترسیم شد')}catch{toast('محاسبه مسیر انجام نشد')}}
+function clearRoute(){if(routeLayer)map.removeLayer(routeLayer);routeLayer=null;$('clearRoute').classList.add('hidden')}
+
+async function searchPlace(e){
+  if(e.key!=='Enter')return;const q=e.target.value.trim();if(!q)return;try{const u='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&accept-language=fa&q='+encodeURIComponent(q);const r=await fetch(u);const a=await r.json();if(!a.length)return toast('مکان پیدا نشد');if(searchLayer)map.removeLayer(searchLayer);searchLayer=L.layerGroup().addTo(map);const b=[];a.forEach((x,i)=>{const p=[Number(x.lat),Number(x.lon)];b.push(p);const m=L.marker(p).bindPopup(`<b>${esc(x.display_name)}</b>`).addTo(searchLayer);if(i===0)m.openPopup()});map.fitBounds(b,{padding:[50,50],maxZoom:16})}catch{toast('خطا در جستجوی مکان')}}
+
+function closeModals(){$('.modal') /* noop */;document.querySelectorAll('.modal').forEach(m=>m.classList.remove('open'))}
+function nav(tab,el){document.querySelectorAll('.navitem').forEach(x=>x.classList.remove('active'));el.classList.add('active');closeModals();closeChat();if(tab==='map'){$('global').style.display='block'}else{$('global').style.display='none';$('public').classList.remove('active')}if(tab==='chats'){$('chatsModal').classList.add('open');renderChats()}if(tab==='profile')openProfile()}
+
+async function init(){
+  initMap();initLocationButton();$('radius').value=CFG.radius;$('radiusValue').textContent=CFG.radius;drawRadius();
+  try{
+    const ok=await ensureSession();
+    if(!ok){$('auth').style.display='flex';return}
+    $('auth').style.display='none';await bootData();locateMe();
+  }catch(e){console.error(e);toast('اتصال به Supabase برقرار نشد')}
+  setInterval(()=>{if(state.user)syncLocation()},CFG.locationInterval);
+  setInterval(async()=>{if(state.user){await loadPeople();renderMap()}},30000);
+  setTimeout(()=>map.invalidateSize(),300);
+}
+window.addEventListener('resize',()=>map?.invalidateSize());
+init();
+</script>
+</body>
+</html>
